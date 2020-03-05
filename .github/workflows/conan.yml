@@ -83,8 +83,8 @@ jobs:
         - { name: "CLANG", version: "7.0", buildType: "Release" }
         - { name: "CLANG", version: "8", buildType: "Debug"     }
         - { name: "CLANG", version: "8", buildType: "Release"   }
-        - { name: "CLANG", version: "9", buildType: "Debug"     }
-        - { name: "CLANG", version: "9", buildType: "Release"   }
+        # - { name: "CLANG", version: "9", buildType: "Debug"     }
+        # - { name: "CLANG", version: "9", buildType: "Release"   }
     name: ${{ matrix.compiler.name }} ${{ matrix.compiler.version }} ${{ matrix.compiler.buildType }}
     # if: ${{ env.SPLIT_BY_BUILD_TYPE }} == 'true'
     steps:
