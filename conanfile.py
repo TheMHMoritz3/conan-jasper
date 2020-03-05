@@ -1,62 +1,85 @@
-from conans import ConanFile, CMake, tools
+import glob
 import os
+from conans import ConanFile, CMake, tools
 
 
-class LibnameConan(ConanFile):
-    name = "libname"
-    description = "Keep it short"
-    topics = ("conan", "libname", "logging")
-    url = "https://github.com/bincrafters/conan-libname"
-    homepage = "https://github.com/original_author/original_lib"
-    license = "MIT"  # Indicates license type of the packaged library; please use SPDX Identifiers https://spdx.org/licenses/
-    # Remove following lines if the target lib does not use CMake
-    exports_sources = ["CMakeLists.txt"]
+class JasperConan(ConanFile):
+    name = "jasper"
+    license = "JasPer License Version 2.0"
+    homepage = "https://github.com/mdadams/jasper"
+    url = "https://github.com/conan-io/conan-center-index"
+    topics = ("conan", "jasper", "tool-kit", "coding")
+    description = "JasPer Image Processing/Coding Tool Kit"
+    exports_sources = "CMakeLists.txt"
     generators = "cmake"
+    settings = "os", "compiler", "build_type", "arch"
+    options = {"shared": [True, False],
+               "fPIC": [True, False],
+               "jpegturbo": [True, False]}
+    default_options = {"shared": False, "fPIC": True, "jpegturbo": True}
 
-    # Options may need to change depending on the packaged library
-    settings = "os", "arch", "compiler", "build_type"
-    options = {"shared": [True, False], "fPIC": [True, False]}
-    default_options = {"shared": False, "fPIC": True}
+    _cmake = None
 
-    _source_subfolder = "source_subfolder"
-    _build_subfolder = "build_subfolder"
+    @property
+    def _source_subfolder(self):
+        return "source_subfolder"
 
-    requires = (
-        "zlib/1.2.11"
-    )
+    @property
+    def _build_subfolder(self):
+        return "build_subfolder"
+
+    def requirements(self):
+        if self.options.jpegturbo:
+            self.requires.add("libjpeg-turbo/1.5.2@bincrafters/stable")
+        else:
+            self.requires.add("libjpeg/9d")
 
     def config_options(self):
-        if self.settings.os == 'Windows':
+        if self.settings.os == "Windows":
             del self.options.fPIC
 
+    def configure(self):
+        del self.settings.compiler.cppstd
+        del self.settings.compiler.libcxx
+
     def source(self):
-        tools.get(**self.conan_data["sources"][self.version])
-        extracted_dir = self.name + "-" + self.version
-        os.rename(extracted_dir, self._source_subfolder)
+        tools.download("https://github.com/mdadams/jasper/archive/version-2.0.14.zip", "jasper.zip")
+        tools.unzip("jasper.zip", ".")
+        os.rename("jasper-version-2.0.14", self._source_subfolder)
+
+        tools.replace_in_file(self._source_subfolder+"/CMakeLists.txt", "project(JasPer LANGUAGES C)",
+                              '''project(JasPer LANGUAGES C)
+include(${CMAKE_BINARY_DIR}/../conanbuildinfo.cmake)
+conan_basic_setup()''')
 
     def _configure_cmake(self):
-        cmake = CMake(self)
-        cmake.definitions["BUILD_TESTS"] = False  # example
-        cmake.configure(build_folder=self._build_subfolder)
-        return cmake
+        if self._cmake:
+            return self._cmake
+        self._cmake = CMake(self)
+        self._cmake.definitions["JAS_ENABLE_DOC"] = False
+        self._cmake.definitions["JAS_ENABLE_PROGRAMS"] = False
+        self._cmake.definitions["JAS_ENABLE_SHARED"] = self.options.shared
+        self._cmake.definitions["JAS_LIBJPEG_REQUIRED"] = "REQUIRED"
+        self._cmake.definitions["JAS_ENABLE_OPENGL"] = False
+        self._cmake.configure(build_folder=self._build_subfolder, source_folder=self._source_subfolder)
+        return self._cmake
 
     def build(self):
         cmake = self._configure_cmake()
         cmake.build()
 
     def package(self):
-        self.copy(pattern="LICENSE", dst="licenses", src=self._source_subfolder)
+        self.copy("LICENSE", src=self._source_subfolder, dst="licenses")
         cmake = self._configure_cmake()
         cmake.install()
-        # If the CMakeLists.txt has a proper install method, the steps below may be redundant
-        # If so, you can just remove the lines below
-        include_folder = os.path.join(self._source_subfolder, "include")
-        self.copy(pattern="*", dst="include", src=include_folder)
-        self.copy(pattern="*.dll", dst="bin", keep_path=False)
-        self.copy(pattern="*.lib", dst="lib", keep_path=False)
-        self.copy(pattern="*.a", dst="lib", keep_path=False)
-        self.copy(pattern="*.so*", dst="lib", keep_path=False)
-        self.copy(pattern="*.dylib", dst="lib", keep_path=False)
+        tools.rmdir(os.path.join(self.package_folder, "share"))
+        tools.rmdir(os.path.join(self.package_folder, "lib", "pkgconfig"))
+        if self.settings.os == "Windows":
+            for dll_file in glob.glob(os.path.join(self.package_folder, "bin", "*.dll")):
+                if os.path.basename(dll_file).startswith(("concrt", "msvcp", "vcruntime")):
+                    os.unlink(dll_file)
 
     def package_info(self):
-        self.cpp_info.libs = tools.collect_libs(self)
+        self.cpp_info.libs = ["jasper"]
+        if self.settings.os == "Linux":
+            self.cpp_info.libs.append("m")
