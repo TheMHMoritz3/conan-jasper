@@ -83,8 +83,8 @@ jobs:
         - { name: "CLANG", version: "7.0", buildType: "Release" }
         - { name: "CLANG", version: "8", buildType: "Debug"     }
         - { name: "CLANG", version: "8", buildType: "Release"   }
-        - { name: "CLANG", version: "9", buildType: "Debug"     }
-        - { name: "CLANG", version: "9", buildType: "Release"   }
+        # - { name: "CLANG", version: "9", buildType: "Debug"     }
+        # - { name: "CLANG", version: "9", buildType: "Release"   }
     name: ${{ matrix.compiler.name }} ${{ matrix.compiler.version }} ${{ matrix.compiler.buildType }}
     # if: ${{ env.SPLIT_BY_BUILD_TYPE }} == 'true'
     steps:
@@ -101,7 +101,9 @@ jobs:
           CONAN_USE_DOCKER: 1
           CONAN_LOGIN_USERNAME: ${{ secrets.CONAN_LOGIN_USERNAME }}
           CONAN_PASSWORD: ${{ secrets.CONAN_PASSWORD }}
-          CONAN_BUILD_TYPES: ${{ matrix.compiler.buildType }}
+          CONAN_UPLOAD: ${{ secrets.CONAN_UPLOAD }}
+          CONAN_USERNAME: "themhmoritz3"
+          CONAN_VISUAL_VERSIONS: ${{ matrix.winowsCompiler.version }}
         run: |
           export CONAN_${{ matrix.compiler.name }}_VERSIONS="${{ matrix.compiler.version }}"
           python build.py
